@@ -1,32 +1,19 @@
-mod component;
 pub mod api;
+mod component;
+pub mod error_template;
 pub mod model;
 pub mod types;
-pub mod error_template;
 pub mod utility;
 
 use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
 
-use crate::types::*;
-
-use crate::error_template::{AppError, ErrorTemplate};
-
-use crate::component::{
-    notebook_bar::NotebookBar,
-    notes_bar::NotesBar,
-    notes_view::NotesView
-};
-
 use crate::api::*;
-use crate::model::{
-     notebook::Notebook,
-     note::Note,
-     count::CountEvent
-};
-
-
+use crate::component::{notebook_bar::NotebookBar, notes_bar::NotesBar, notes_view::NotesView};
+use crate::error_template::{AppError, ErrorTemplate};
+use crate::model::{count::CountEvent, note::Note, notebook::Notebook};
+use crate::types::*;
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -60,7 +47,7 @@ pub fn App() -> impl IntoView {
 #[component]
 fn HomePage() -> impl IntoView {
     use crate::component::icon::{Icon, Unselected};
-  
+
     let upsert_note: UpsertNoteAction = create_server_action::<UpsertNote>();
     let delete_note: DeleteNoteAction = create_server_action::<DeleteNote>();
     let upsert_notebook: UpsertNotebookAction = create_server_action::<UpsertNotebook>();
@@ -69,7 +56,7 @@ fn HomePage() -> impl IntoView {
     let not_empty = create_memo(move |_| selected_notebook().is_some());
     //let not_empty = is_some(selected_notebook);
 
-    view! {  
+    view! {
         <div class="flex h-screen text-white">
             <NotebookBar
                 upsert_notebook=upsert_notebook
@@ -88,12 +75,12 @@ fn HomePage() -> impl IntoView {
                 <NotesBar
                     add_note=upsert_note
                     delete_note=delete_note
-                /> 
+                />
                 <NotesView
                     update_note=upsert_note
                     delete_note=delete_note
                 />
-            </Show>   
+            </Show>
         </div>
     }
 }

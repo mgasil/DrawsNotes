@@ -3,7 +3,7 @@
 #[cfg(feature = "ssr")]
 use std::str::FromStr;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 #[cfg(feature = "ssr")]
 use surrealdb::sql::Id;
 #[cfg(feature = "ssr")]
@@ -27,5 +27,3 @@ impl Note {
         }
     }
 }
-
-
