@@ -13,8 +13,6 @@ pub use IconType::*;
 
 #[component]
 pub fn Icon(r#type: IconType) -> impl IntoView {
-    //#[prop(into)] on_click: Callback<MouseEvent>
-
     match r#type {
         AddNote => view! {
             <svg

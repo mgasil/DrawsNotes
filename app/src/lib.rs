@@ -17,7 +17,6 @@ use crate::types::*;
 
 #[component]
 pub fn App() -> impl IntoView {
-    // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
     provide_context(create_signal(None::<Notebook>));
     provide_context(create_signal(None::<Note>));
@@ -26,10 +25,8 @@ pub fn App() -> impl IntoView {
     view! {
         <Stylesheet id="leptos" href="/pkg/start-axum-workspace.css"/>
 
-        // sets the document title
         <Title text="Welcome to Leptos"/>
 
-        // content for this welcome page
         <Router fallback=|| {
             let mut outside_errors = Errors::default();
             outside_errors.insert_with_default_key(AppError::NotFound);
@@ -54,7 +51,6 @@ fn HomePage() -> impl IntoView {
 
     let (selected_notebook, _) = expect_context::<NotebookSignal>();
     let not_empty = create_memo(move |_| selected_notebook().is_some());
-    //let not_empty = is_some(selected_notebook);
 
     view! {
         <div class="flex h-screen text-white">

@@ -3,9 +3,7 @@ use axum::Router;
 use fileserv::file_and_error_handler;
 use leptos::*;
 use leptos_axum::{generate_route_list, LeptosRoutes};
-//use server_fn::codec::TextStream;
 
-//pub mod model;
 pub mod fileserv;
 
 #[tokio::main]
