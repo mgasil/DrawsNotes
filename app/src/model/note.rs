@@ -1,7 +1,8 @@
+#![allow(unused_imports)]
+
 #[cfg(feature = "ssr")]
 use std::str::FromStr;
 
-use dioxus::prelude::Dep;
 use serde::{Serialize, Deserialize};
 #[cfg(feature = "ssr")]
 use surrealdb::sql::Id;
@@ -26,3 +27,5 @@ impl Note {
         }
     }
 }
+
+

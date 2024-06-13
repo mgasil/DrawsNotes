@@ -15,20 +15,8 @@ use std::{
     time::Duration,
 };
 
-use crate::component::loading::Loading;
-use crate::component::{notebook_bar::NotebookBar, notes_bar::NotesBar, notes_view::NotesView};
-use crate::model::notebook::NotebookNoteCount;
-use dioxus::prelude::*;
-use dioxus_fullstack::prelude::{server_fn::error::ServerFnErrorErr, *};
-use log::LevelFilter;
-use model::{note::Note, notebook::Notebook};
-pub mod component;
-pub mod model;
-
-fn main() {
-    dioxus_logger::init(LevelFilter::Info).expect("failed to init logger");
-    LaunchBuilder::new(app).launch();
-}
+use crate::model::{note::Note, notebook::Notebook, notebook::NotebookNoteCount};
+use leptos::{server, ServerFnError};
 
 const NOTE_TABLE: &str = "note";
 const NOTEBOOK_TABLE: &str = "notebook";
@@ -59,7 +47,7 @@ struct Record {
 }
 
 #[server]
-async fn get_note(note_id: String) -> Result<Note, ServerFnError> {
+pub async fn get_note(note_id: String) -> Result<Note, ServerFnError> {
     let con = DB.get().await;
     let res: Option<Note> = con
         .query("SELECT type::string(id) as id, title, content, type::string(notebook) as notebook FROM type::thing($note_id)")
@@ -71,7 +59,7 @@ async fn get_note(note_id: String) -> Result<Note, ServerFnError> {
 }
 
 #[server]
-async fn upsert_note(note: Note) -> Result<String, ServerFnError> {
+pub async fn upsert_note(note: Note) -> Result<String, ServerFnError> {
     let con = DB.get().await;
 
     let res: Vec<Record> = if let Some(id) = note.id {
@@ -102,7 +90,7 @@ async fn upsert_note(note: Note) -> Result<String, ServerFnError> {
 }
 
 #[server]
-async fn upsert_notebook(notebook: Notebook) -> Result<String, ServerFnError> {
+pub async fn upsert_notebook(notebook: Notebook) -> Result<String, ServerFnError> {
     let con = DB.get().await;
 
     let res: Vec<Record> = if let Some(id) = notebook.id {
@@ -128,7 +116,7 @@ async fn upsert_notebook(notebook: Notebook) -> Result<String, ServerFnError> {
 }
 
 #[server]
-async fn delete_notebook(notebook: Notebook) -> Result<(), ServerFnError> {
+pub async fn delete_notebook(notebook: Notebook) -> Result<(), ServerFnError> {
     // {
     //     let mut notebooks = NOTEBOOKS.write()?;
     //     if !notebooks.remove(&notebook) {
@@ -147,7 +135,8 @@ async fn delete_notebook(notebook: Notebook) -> Result<(), ServerFnError> {
 }
 
 #[server]
-async fn get_notebooks() -> Result<Vec<Notebook>, ServerFnError> {
+pub async fn get_notebooks() -> Result<Vec<Notebook>, ServerFnError> {
+    //return Err(ServerFnError::new("this is an error"));
     let con = DB.get().await;
 
     // really don't want this to be two queries, but this seemed like the lesser of evils
@@ -203,7 +192,9 @@ async fn get_notebooks() -> Result<Vec<Notebook>, ServerFnError> {
 }
 
 #[server]
-async fn get_note_summaries(notebook_id: Option<String>) -> Result<Vec<Note>, ServerFnError> {
+pub async fn get_note_summaries(
+    notebook_id: Option<String>,
+) -> Result<Vec<Note>, ServerFnError<String>> {
     use std::str::FromStr;
     let con = DB.get().await;
 
@@ -216,26 +207,25 @@ async fn get_note_summaries(notebook_id: Option<String>) -> Result<Vec<Note>, Se
         .bind(("table", NOTE_TABLE))
         .bind(("notebook_thing", notebook_thing))
         .await
-        .expect("issue on await")
+        .map_err(|_| ServerFnError::ServerError("query execution failed".to_string()))?
         .take(0)
-        .expect("issue on take")
+        .map_err(|_| ServerFnError::ServerError("failed to take result".to_string()))?
     } else {
         con
         .query("SELECT type::string(id) as id, title, string::slice(content, 0, 40) as content, type::string(notebook) as notebook FROM type::table($table);")
         .bind(("table", NOTE_TABLE))
         .await
-        .expect("issue on await")
+        .map_err(|_| ServerFnError::ServerError("query execution failed".to_string()))?
         .take(0)
-        .expect("issue on take")
+        .map_err(|_| ServerFnError::ServerError("failed to take result".to_string()))?
     };
 
     let res: Vec<Note> = res.into_iter().map(|notedb| notedb.into()).collect();
     Ok(res)
 }
 
-
 #[server]
-async fn delete_note(note_id: String) -> Result<(), ServerFnError> {
+pub async fn delete_note(note_id: String) -> Result<(), ServerFnError> {
     let con = DB.get().await;
 
     let res = con
@@ -244,85 +234,4 @@ async fn delete_note(note_id: String) -> Result<(), ServerFnError> {
         .await?;
 
     Ok(())
-}
-
-fn app(cx: Scope) -> Element {
-    let notebooks: &UseFuture<Result<Vec<Notebook>, ServerFnError>> =
-        use_future(cx, (), |_| get_notebooks());
-    let mut selected_notebook: &UseState<Option<Notebook>> = use_state(cx, || None);
-    let mut selected_note = use_state(cx, || None);
-    let mut note_summaries: &UseFuture<Result<Vec<Note>, ServerFnError>> =
-        use_future(cx, (selected_notebook), |selected_notebook| async move {
-            if let Some(Notebook { id, .. }) = selected_notebook.current().as_ref() {
-                get_note_summaries(id.clone()).await
-            } else {
-                Ok(vec![])
-            }
-        });
-
-    use_effect(cx, (selected_notebook,), |(selected_notebook,)| {
-        to_owned!(selected_note);
-        async move {
-            selected_note.set(None);
-        }
-    });
-
-    match notebooks.state() {
-        UseFutureState::Complete(_) => {
-            render! {
-                div {
-                    class: "flex h-screen text-white",
-                    NotebookBar {
-                        notebooks: notebooks,
-                        selected_notebook: selected_notebook.clone(),
-                    },
-                    if let Some(selected_notebook) = selected_notebook.current().as_ref() {
-                        render! {
-                            NotesBar {
-                                note_summaries: note_summaries,
-                                notebooks: notebooks,
-                                selected_note: selected_note.clone(),
-                                selected_notebook: selected_notebook.clone(),
-                            },
-                            NotesView {
-                                notebooks: notebooks,
-                                selected_note: selected_note.clone(),
-                                note_summaries: note_summaries,
-                            }
-                        }
-                    } else {
-                        render! {
-                            div {
-                                class: "h-full w-full bg-gray-800 flex items-center justify-center p-8 gap-4 text-gray-400 text-lg",
-                                div {
-                                    class: "flex flex-row items-center",
-                                    svg {
-                                        class: "shrink h-4 px-2",
-                                        xmlns:"http://www.w3.org/2000/svg",
-                                        // these colors are the same as text-gray-400
-                                        stroke: "rgb(156 163 175 / var(--tw-text-opacity))",
-                                        fill: "rgb(156 163 175 / var(--tw-text-opacity))",
-                                        view_box: "0 0 512 512",
-                                        path {
-                                            d: "M512 256A256 256 0 1 0 0 256a256 256 0 1 0 512 0zM231 127c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-71 71L376 232c13.3 0 24 10.7 24 24s-10.7 24-24 24l-182.1 0 71 71c9.4 9.4 9.4 24.6 0 33.9s-24.6 9.4-33.9 0L119 273c-9.4-9.4-9.4-24.6 0-33.9L231 127z",
-                                        }
-                                    },
-                                    div {
-                                        "Select a notebook"
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        _ => {
-            render! {
-                Loading {
-                    fullscreen: true,
-                }
-            }
-        }
-    }
 }
